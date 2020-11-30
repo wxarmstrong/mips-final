@@ -8,9 +8,7 @@ architecture test of testbench is
 
 component mips_processor
  port(
-  clk, reset: in  STD_LOGIC;
-  out_instf:  out STD_LOGIC_VECTOR(31 downto 0);
-  out_instd:  out STD_LOGIC_VECTOR(31 downto 0)
+  clk, reset: in  STD_LOGIC
  );
 end component;
 
@@ -18,7 +16,7 @@ signal clk, reset: STD_LOGIC;
 signal out_instf, out_instD: STD_LOGIC_VECTOR(31 downto 0);
 
 begin
- mips: mips_processor port map(clk, reset, out_instf, out_instd);
+ mips: mips_processor port map(clk, reset);
 
  process begin
   clk <= '0';
