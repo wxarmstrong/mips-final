@@ -1,7 +1,7 @@
 library IEEE; 
 use IEEE.STD_LOGIC_1164.all; 
-use IEEE.NUMERIC_STD_UNSIGNED.all;
 
+-- shift left by 2
 entity sl2 is
  port(
   a: in  STD_LOGIC_VECTOR(31 downto 0);

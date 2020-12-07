@@ -9,7 +9,7 @@ end;
 
 architecture behave of dataforwarding is
 begin
-  process(regaddr, writeRegM, writeRegW, regWriteM, regWriteW) begin
+  process(all) begin
     if(regaddr /= "00000" and  regaddr = writeRegM and regWriteM = '1') then
       forward <= "10";
     elsif(regaddr /= "00000" and regaddr = writeRegW and regWriteW = '1') then

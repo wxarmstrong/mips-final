@@ -9,7 +9,7 @@ end;
 
 architecture behave of controlforwarding is
 begin
-  process(regaddr, writeRegM, regWriteM) begin
+  process(all) begin
     if(regaddr /= "00000" and  regaddr = writeRegM and regWriteM = '1') then
       forward <= '1';
     else
@@ -17,3 +17,4 @@ begin
     end if;
   end process;
 end;
+
