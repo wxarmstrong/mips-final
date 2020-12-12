@@ -1,3 +1,12 @@
+--CS 3650 Fall 2020 Final Project
+--William Armstrong
+--Michael Than
+--Dominic Guo
+--Alisar Barakat
+
+-- Hazard Unit
+-- Encases both forwarding and stall units
+
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 
@@ -14,7 +23,7 @@ entity hazardunit is
 end;
 
 architecture struct of hazardunit is
-	component datafowarding
+	component dataforwarding
 		port(
 			regaddr: in STD_LOGIC_VECTOR(4 downto 0);
 			writeRegM, writeRegW: in STD_LOGIC_VECTOR(4 downto 0);
@@ -27,7 +36,7 @@ architecture struct of hazardunit is
          		memToRegE: in STD_LOGIC;
          		stall: out STD_LOGIC);
   	end component;
-  	component controlfowarding
+  	component controlforwarding
     		port(
 			regaddr: in STD_LOGIC_VECTOR(4 downto 0);
          		writeRegM: in STD_LOGIC_VECTOR(4 downto 0);
@@ -46,17 +55,13 @@ architecture struct of hazardunit is
 
 	signal lwstall, brstall: STD_LOGIC;
 	begin
-  		forwardingAE: datafowarding port map (rsE, writeRegM, writeRegW, regWriteM, regWriteW, forwardAE);
-  		forwardingBE: datafowarding port map (rtE, writeRegM, writeRegW, regWriteM, regWriteW, forwardBE);
-  		forwardingAD: controlfowarding port map (rsD, writeRegM, regWriteM, forwardAD);
-  		forwardingBD: controlfowarding port map (rtD, writeRegM, regWriteM, forwardBD);
-  		hadwarestalling: hardwarestall port map (rsD, rtE, rtD, memToRegE, lwstall);
+  		forwardingAE: dataforwarding port map (rsE, writeRegM, writeRegW, regWriteM, regWriteW, forwardAE);
+  		forwardingBE: dataforwarding port map (rtE, writeRegM, writeRegW, regWriteM, regWriteW, forwardBE);
+  		forwardingAD: controlforwarding port map (rsD, writeRegM, regWriteM, forwardAD);
+  		forwardingBD: controlforwarding port map (rtD, writeRegM, regWriteM, forwardBD);
+  		hardwarestalling: hardwarestall port map (rsD, rtE, rtD, memToRegE, lwstall);
   		branchstalling: branchstall port map (rsD, rtD, branchD, regWriteE, writeRegE, writeRegM, memToRegM, brstall);
   		stallF <= lwstall or brstall;
   		stallD <= lwstall or brstall;
   		flushE <= lwstall or brstall;
-                --forwardAE <= "00";
-                --forwardBE <= "00";
-                --forwardAD <= '0';
-                --forwardBD <= '0';
 end; 

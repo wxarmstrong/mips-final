@@ -1,7 +1,14 @@
+--CS 3650 Fall 2020 Final Project
+--William Armstrong
+--Michael Than
+--Dominic Guo
+--Alisar Barakat
+
 library IEEE; 
 use IEEE.STD_LOGIC_1164.all; 
 
--- sign extender
+-- Sign extender
+
 entity signext is
  port(
   a: in  STD_LOGIC_VECTOR(15 downto 0);

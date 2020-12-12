@@ -1,7 +1,15 @@
+--CS 3650 Fall 2020 Final Project
+--William Armstrong
+--Michael Than
+--Dominic Guo
+--Alisar Barakat
+
 library IEEE; use IEEE.STD_LOGIC_1164.all; 
 use IEEE.NUMERIC_STD_UNSIGNED.all;
 
-entity RegisterFile is -- three-port register file
+-- Register File
+
+entity RegisterFile is
   port(clk:           in  STD_LOGIC;
        we3:           in  STD_LOGIC;
        ra1, ra2, wa3: in  STD_LOGIC_VECTOR(4 downto 0);
@@ -11,16 +19,20 @@ end;
 
 architecture behave of RegisterFile is
   type ramtype is array (31 downto 0) of STD_LOGIC_VECTOR(31 downto 0);
-  signal mem: ramtype;
+  -- Initialize registers at zero
+  signal mem: ramtype := (others=>(others=>'0'));
 begin
 
-  process(clk) begin
+  process(clk, wa3, we3, wd3) begin
+    -- Write back to register at falling edge (end) of WB phase
     if falling_edge(clk) then
        if we3 = '1' then mem(to_integer(wa3)) <= wd3;
        end if;
     end if;
   end process;
-  process(clk, we3, ra1, ra2, wa3) begin
+
+  process(ra1, ra2) begin
+    -- Zero register
     if (to_integer(ra1) = 0) then rd1 <= X"00000000";
     else rd1 <= mem(to_integer(ra1));
     end if;
@@ -28,4 +40,5 @@ begin
     else rd2 <= mem(to_integer(ra2));
     end if;
   end process;
+
 end;

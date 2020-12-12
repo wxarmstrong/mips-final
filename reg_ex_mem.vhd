@@ -1,5 +1,13 @@
+--CS 3650 Fall 2020 Final Project
+--William Armstrong
+--Michael Than
+--Dominic Guo
+--Alisar Barakat
+
 library IEEE;
 use IEEE.STD_LOGIC_1164.all;
+
+-- Register between EX/MEM phases
 
 entity reg_ex_mem is
  port
@@ -17,6 +25,7 @@ end;
 architecture Behavioral of reg_ex_mem is
 begin
  process(clk, reset) begin
+  -- Clear on reset
   if (reset = '1') then
       mem_regwrite <= '0';
       mem_memtoreg <= '0';

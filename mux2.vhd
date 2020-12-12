@@ -1,6 +1,14 @@
+--CS 3650 Fall 2020 Final Project
+--William Armstrong
+--Michael Than
+--Dominic Guo
+--Alisar Barakat
+
 library IEEE; 
 use IEEE.STD_LOGIC_1164.all; 
 use IEEE.NUMERIC_STD_UNSIGNED.all;
+
+-- Two-way multiplexer
 
 entity mux2 is
  generic(width: integer);

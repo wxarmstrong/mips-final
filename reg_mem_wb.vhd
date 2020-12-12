@@ -1,5 +1,13 @@
+--CS 3650 Fall 2020 Final Project
+--William Armstrong
+--Michael Than
+--Dominic Guo
+--Alisar Barakat
+
 library IEEE;
 use IEEE.STD_LOGIC_1164.all;
+
+-- Register file between MEM/WB phases
 
 entity reg_mem_wb is
  port
@@ -17,12 +25,14 @@ end;
 architecture Behavioral of reg_mem_wb is
 begin
  process(clk, reset) begin
+  -- Reset: clear all signals
   if (reset = '1') then
       wb_regwrite <= '0';
       wb_memtoreg <= '0';
       wb_aluout <= (others => '0');
       wb_readdata <= (others => '0');
       wb_writereg <= (others => '0');
+  -- Advance on clock cycle
   elsif rising_edge(clk) then
       wb_regwrite <= mem_regwrite;
       wb_memtoreg <= mem_memtoreg;
@@ -32,6 +42,3 @@ begin
   end if;
  end process;
 end Behavioral;
-
-
-

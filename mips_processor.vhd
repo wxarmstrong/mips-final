@@ -1,29 +1,24 @@
+--CS 3650 Fall 2020 Final Project
+--William Armstrong
+--Michael Than
+--Dominic Guo
+--Alisar Barakat
+
+-- MIPS Processor
+
 library IEEE; 
 use IEEE.STD_LOGIC_1164.all;
 use IEEE.NUMERIC_STD.all; 
 
 entity mips_processor is
   port(
-       clk, reset:                     in     STD_LOGIC;
---       pc_out, instrF_out, instrD_out: out    STD_LOGIC_VECTOR(31 downto 0);
---       enableD_out, enableF_out:       out    STD_LOGIC;
---       pcsrc_out, branch_out, jump_out: out    STD_LOGIC;
---       pcnextbr_out, pcnext_out:       out    STD_LOGIC_VECTOR(31 downto 0);
-       ra1_out, ra2_out:         out STD_LOGIC_VECTOR(4 downto 0);
-       rd1D_out, rd2D_out:             out    STD_LOGIC_VECTOR(31 downto 0)
---       aluop_out:                      out    STD_LOGIC_VECTOR(1 downto 0);
---       srcaE_out, srcbE_out:           out    STD_LOGIC_VECTOR(31 downto 0);
---       aluoutE_out:                    out    STD_LOGIC_VECTOR(31 downto 0);
---       readdata_out:                   out    STD_LOGIC_VECTOR(31 downto 0);
---       resultW_out:                    out    STD_LOGIC_VECTOR(31 downto 0)
---       writedata, dataadr:        out    STD_LOGIC_VECTOR(31 downto 0);
---       memwrite:                  out    STD_LOGIC;
---       memWriteMDep:              out    STD_LOGIC
---       dataadrDep, writeDataMDep: out STD_LOGIC_VECTOR(31 downto 0)
- );
+       clk, reset:                     in     STD_LOGIC
+      );
 end;
 
 architecture Behavioral of mips_processor is
+
+-- COMPONENTS
 
  component adder
   port(
@@ -118,7 +113,7 @@ architecture Behavioral of mips_processor is
        branch, alusrc:     out STD_LOGIC;
        regdst, regwrite:   out STD_LOGIC;
        jump:               out STD_LOGIC;
-       aluop:              out STD_LOGIC_VECTOR(1 downto 0);
+       aluop:              out STD_LOGIC_VECTOR(2 downto 0);
        zerosrc:            out STD_LOGIC;
        immsrc:             out STD_LOGIC
   );
@@ -128,7 +123,7 @@ architecture Behavioral of mips_processor is
   port
   (
        funct:      in  STD_LOGIC_VECTOR(5 downto 0);
-       aluop:      in  STD_LOGIC_VECTOR(1 downto 0);
+       aluop:      in  STD_LOGIC_VECTOR(2 downto 0);
        alucontrol: out STD_LOGIC_VECTOR(2 downto 0)
   );
  end component;
@@ -136,6 +131,7 @@ architecture Behavioral of mips_processor is
   component alu
     port(a, b:       in  STD_LOGIC_VECTOR(31 downto 0);
          alucontrol: in  STD_LOGIC_VECTOR(2 downto 0);
+         shift:      in  STD_LOGIC_VECTOR(4 downto 0);
          result:     out STD_LOGIC_VECTOR(31 downto 0);
          zero:       out STD_LOGIC);
   end component;
@@ -171,13 +167,15 @@ architecture Behavioral of mips_processor is
          id_rd1, id_rd2:           in  STD_LOGIC_VECTOR(31 downto 0);
          id_signimm, id_unsignimm: in  STD_LOGIC_VECTOR(31 downto 0);
          id_rs, id_rt, id_rd:      in  STD_LOGIC_VECTOR(4  downto 0);
+         id_shift:                 in  STD_LOGIC_VECTOR(4  downto 0);
          ex_regwrite, ex_memtoreg: out STD_LOGIC;
          ex_memwrite, ex_alusrc:   out STD_LOGIC;
          ex_regdst, ex_immsrc:     out STD_LOGIC;
          ex_alucontrol:            out STD_LOGIC_VECTOR(2 downto 0);
          ex_rd1, ex_rd2:           out STD_LOGIC_VECTOR(31 downto 0);
          ex_signimm, ex_unsignimm: out STD_LOGIC_VECTOR(31 downto 0);
-         ex_rs, ex_rt, ex_rd:      out STD_LOGIC_VECTOR(4  downto 0));
+         ex_rs, ex_rt, ex_rd:      out STD_LOGIC_VECTOR(4  downto 0);
+         ex_shift:                 out STD_LOGIC_VECTOR(4  downto 0));
   end component;
 
  component reg_ex_mem
@@ -233,6 +231,7 @@ architecture Behavioral of mips_processor is
  signal regwriteE, memtoregE, memwriteE, alusrcE, regdstE, immsrcE: STD_LOGIC;
  signal rd1E, rd2E, signimmE, unsignimmE: STD_LOGIC_VECTOR(31 downto 0);
  signal alucontrolE:          STD_LOGIC_VECTOR(2  downto 0);
+ signal shiftE:               STD_LOGIC_VECTOR(4  downto 0);
 
  -- MEM->
  signal regwriteM, memtoregM, memwriteM: STD_LOGIC;
@@ -254,14 +253,12 @@ architecture Behavioral of mips_processor is
  --- maindec
  signal memtoreg, memwrite, branchD, alusrc,
         regdst, regwrite, jump, zerosrc, immsrc: STD_LOGIC;
- signal aluop:              STD_LOGIC_VECTOR(1 downto 0); 
+ signal aluop:              STD_LOGIC_VECTOR(2 downto 0); 
  --- aludec
  signal alucontrol:         STD_LOGIC_VECTOR(2 downto 0);
  -- regfile
  signal rd1D, rd2D:         STD_LOGIC_VECTOR(31 downto 0);
  -- dmem
- signal memWriteMDep:              STD_LOGIC;
- signal dataadrDep, writeDataMDep: STD_LOGIC_VECTOR(31 downto 0);
  signal readdata:                  STD_LOGIC_VECTOR(31 downto 0);
 
  -- ALU
@@ -281,89 +278,105 @@ architecture Behavioral of mips_processor is
 
 begin
 
+ -- ID and IF phases should only advance if a stall is not detected
  enableD <= not(stallD);
  enableF <= not(stallF);
+
  rsD <= instrD(25 downto 21);
  rtD <= instrD(20 downto 16);
  pcjump <= pcplus4D(31 downto 28) & instrD(25 downto 0) & "00";
- mux_zero <= zero when zerosrc = '0' else not zero; 
+
+ -- For a BNE operation, swap the result of the comparison
+ mux_zero <= zero when zerosrc = '0' else not zero;
+ 
+ -- Indicates if a branch is taken
  pcsrc <= mux_zero and branchD;
 
--- pc_out     <= pc;
--- instrF_out <= instrF;
--- instrD_out <= instrD;
--- enableD_out <= enableD;
--- enableF_out <= enableF;
--- pcsrc_out <= pcsrc;
--- branch_out <= branchD;
--- jump_out <= jump;
--- pcnextbr_out <= pcnextbr;
--- pcnext_out <= pcnext;
- ra1_out <= instrD(25 downto 21);
- ra2_out <= instrD(20 downto 16);
- rd1D_out <= rd1D;
- rd2D_out <= rd2D;
--- aluop_out <= aluop;
--- srcaE_out <= srcaE;
--- srcbE_out <= srcbE;
--- aluoutE_out <= aluoutE;
--- readdata_out <= readdata;
--- resultW_out <= resultW;
-
  -- Instruction memory
- imem1:  imem      port map(pc, instrF);
+ instrMEM:  imem      port map(pc, instrF);
  -- Data Memory
- dmem1:  dmem      port map(clk, memwriteMDep, dataadrDep, writeDataMDep, readdata);
- -- Adder
- addr1:  adder     port map(pc, x"00000004", pcplus4F);
- addr2:  adder     port map(pcplus4D, immsh, pcbranch);
- -- Compare
- comp:   compare   port map(operand1, operand2, zero);
+ dataMEM:  dmem      port map(clk, memwriteM, aluoutM, writedataM, readdata);
+
+ -- Adds 4 to the PC value to advance to the adjacent instruction
+ adder1:  adder     port map(pc, x"00000004", pcplus4F);
+
+ -- Adds the offset value to the PC to determine the PC branch destination
+ adder2:  adder     port map(pcplus4D, immsh, pcbranch);
+
+ -- Compare (for BEQ/BNE)
+ comparator:   compare   port map(operand1, operand2, zero);
+
  -- Sign Extend
- signx:  signext   port map(instrD(15 downto 0), signimmD);
+ sign_ex:  signext   port map(instrD(15 downto 0), signimmD);
  -- Unsign Extend
- unsignx: unsignext port map(instrD(15 downto 0), unsignimmD); 
- -- Shift Left 2
- shftl:  sl2       port map(signimmD, immsh);
+ unsign_ex: unsignext port map(instrD(15 downto 0), unsignimmD); 
+
+ -- This shifts the offset value for branch instructions so that the # of instructions indicated
+ --  is shifted to match the exact instruction address offset (i.e. multiplied by 4)
+ shftl2:  sl2       port map(signimmD, immsh);
+
  -- 2-Way Multiplexers
- mux2a:       mux2 generic map(32) port map(pcplus4F, pcbranch, pcsrc, pcnextbr);
- mux2b:       mux2 generic map(32) port map(pcnextbr, pcjump, jump, pcnext);
- forward1mux: mux2 generic map(32) port map(rd1D, aluoutM, forwardAD, operand1);
- forward2mux: mux2 generic map(32) port map(rd2D, aluoutM, forwardBD, operand2);
- pcbrmux:     mux2 generic map(32) port map(pcplus4F, pcbranch, pcsrc, pcnextbr);
- pcmux:       mux2 generic map(32) port map(pcnextbr, pcjump, jump, pcnext);
- wrmux:       mux2 generic map(5)  port map(rtE, rdE, regdstE, writeregE);
- resmux:      mux2 generic map(32) port map(aluoutW, readdataW,  memtoregW, resultW);
- srcbmux:     mux2 generic map(32) port map(writedataE, imm, alusrcE, srcbE);
- immux:       mux2 generic map(32) port map(signimmE, unsignimmE, immsrcE, imm);
+ mux2a:       mux2 generic map(32) port map(pcplus4F, pcbranch, pcsrc, pcnextbr); -- Use branch destination if branch occurs
+ mux2b:       mux2 generic map(32) port map(pcnextbr, pcjump, jump, pcnext);      -- Use jump destination if jump occurs
+
+ -- Reads the operands for the ALU directly from the previous phrase in case of forwarding
+ forward1_mux: mux2 generic map(32) port map(rd1D, aluoutM, forwardAD, operand1);
+ forward2_mux: mux2 generic map(32) port map(rd2D, aluoutM, forwardBD, operand2);
+
+ -- Determines which register value to use for the writereg
+ writereg_mux:       mux2 generic map(5)  port map(rtE, rdE, regdstE, writeregE);
+
+ -- Determines whether to use ALU value or dmem value
+ result_mux:      mux2 generic map(32) port map(aluoutW, readdataW,  memtoregW, resultW);
+
+
+ -- This multiplexer controls whether or not to use a signed or unsigned immediate value
+ immediate_mux:       mux2 generic map(32) port map(signimmE, unsignimmE, immsrcE, imm);
+
+ -- This multiplexer controls whether to use an immediate value or another value
+ --  for the 2nd operand of the ALU.
+ sourceb_mux:     mux2 generic map(32) port map(writedataE, imm, alusrcE, srcbE);
+
  -- 3-Way Multiplexers
- srcamux:      mux3 generic map(32) port map(rd1E, resultW, aluoutM, forwardAE, srcaE);
- writedatamux: mux3 generic map(32) port map(rd2E, resultW, aluoutM, forwardBE, writedataE);
+
+ -- This multiplexer controls the source of the first operand to the ALU. If forwarding is present,
+ --  the value sent will be from the ALU of the previous MEM phase or from the previous WB phase.
+ sourcea_mux:      mux3 generic map(32) port map(rd1E, resultW, aluoutM, forwardAE, srcaE);
+
+ -- This multiplexer controls the source of the 2nd operand to the ALU. If forwarding is present,
+ --  the value sent will be from the ALU of the previous MEM phase or from the previous WB phase.
+ wdata_mux: mux3 generic map(32) port map(rd2E, resultW, aluoutM, forwardBE, writedataE);
+
  -- Flip-Flop
- flop1:  flopr     port map(clk, reset, enableF, pcnext, pc);
+ flopper:  flopr     port map(clk, reset, enableF, pcnext, pc);
+
  -- Register File
- rf:     RegisterFile port map(clk, regwriteW, instrD(25 downto 21), instrD(20 downto 16), writeregW, resultW, rd1D, rd2D);
+ regfile:     RegisterFile port map(clk, regwriteW, instrD(25 downto 21), instrD(20 downto 16), writeregW, resultW, rd1D, rd2D);
+
  -- Controller
- md: maindec port map(instrD(31 downto 26), memtoreg, memwrite, branchD, alusrc, regdst, regwrite, jump, aluop, zerosrc, immsrc);
- ad: aludec  port map(instrD(5 downto 0), aluop, alucontrol);
+ maind: maindec port map(instrD(31 downto 26), memtoreg, memwrite, branchD, alusrc, regdst, regwrite, jump, aluop, zerosrc, immsrc);
+ alud: aludec  port map(instrD(5 downto 0), aluop, alucontrol);
+
  -- ALU
- mainalu: alu port map(srcaE, srcbE, alucontrolE, aluoutE, open);
+ alu1: alu port map(srcaE, srcbE, alucontrolE, shiftE, aluoutE, open);
+
  -- Hazard Unit
- hu: hazardunit port map(rsE, rtE, rsD, rtD, regwriteM, regwriteW, regwriteE,
+ hazard: hazardunit port map(rsE, rtE, rsD, rtD, regwriteM, regwriteW, regwriteE,
                          writeregM, writeregW, writeregE, memtoregE, memtoregM,
                          branchD, forwardAE, forwardBE, forwardAD, forwardBD,
                          stallF, stallD, flushE);
+
  -- IF/ID Register
  rIFID:  reg_if_id port map(clk, enableD, reset, pcsrc, pcplus4F, instrF, pcplus4D, instrD);
  -- ID/EX Register
  rIDEX:  reg_id_ex port map(clk, reset, flushE, regwrite, memtoreg, memwrite,
                             alusrc, regdst, immsrc, alucontrol,
                             rd1D, rd2D, signimmD, unsignimmD,
-                            instrD(25 downto 21), instrD(20 downto 16), instrD(15 downto 11),
+                            instrD(25 downto 21), instrD(20 downto 16), instrD(15 downto 11), instrD(10 downto 6),
                             regwriteE, memtoregE, memwriteE,
                             alusrcE, regdstE, immsrcE, alucontrolE,
                             rd1E, rd2E, signimmE, unsignimmE,
-                            rsE, rtE, rdE);
+                            rsE, rtE, rdE, shiftE);
  -- EX/MEM Register
  rEXMEM: reg_ex_mem port map(clk, reset, 
                              regwriteE, memtoregE, memwriteE, writeregE, aluoutE, writedataE,
